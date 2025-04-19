@@ -16,7 +16,7 @@ function cosineSimilarity(vecA: number[], vecB: number[]): number {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { userQueryEmbedding, fileEmbeddings, userQuestion, chatHistory = [] } = body;
+    const { userQueryEmbedding, fileEmbeddings, userQuestion  } = body;
 
     if (!fileEmbeddings || !Array.isArray(fileEmbeddings)) {
       return NextResponse.json({

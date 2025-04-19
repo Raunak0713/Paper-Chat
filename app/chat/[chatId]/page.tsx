@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, FormEvent, useRef } from 'react'
+import { useEffect, useState, FormEvent, useRef, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '@/convex/_generated/api'
@@ -19,7 +19,7 @@ const ChatPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  //@ts-ignore
+
   const createChunk = useMutation(api.chunk.createChunk)
   const file = useQuery(api.file.getFileById, {
     fileId: chatId as Id<'files'>,
@@ -28,14 +28,12 @@ const ChatPage = () => {
   const isLoading = file === undefined
   const error = file === null
 
-  // Only fetch file embeddings when file is loaded
 
-  //@ts-ignore
   const fileEmbeddings = useQuery(api.chunk.getFileEmbeddings,
-    file ? { fileId: file._id } : "skip" // Use "skip" to prevent the query from running
+    file ? { fileId: file._id } : "skip"
   )
 
-  //@ts-ignore
+
   const chunkCounter = useQuery(api.chunk.chunkCounter, {
     fileId: chatId as Id<'files'>,
   })
@@ -59,20 +57,6 @@ const ChatPage = () => {
     ? Math.round((chunkData.count / chunkData.expectedCount) * 100) 
     : 0
 
-  useEffect(() => {
-    if (file && !isLoading && !error && !hasStartedChunking) {
-      setPdfUrl(file.fileUrl)
-      setFileName(file.fileName)
-      setHasStartedChunking(true) // Set flag to prevent duplicate chunking
-      startChunking(file.fileUrl, file.fileName)
-    }
-  }, [file, isLoading, error, hasStartedChunking])
-
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
-
   const generateEmbeddings = async (chunk: string) => {
     const res = await fetch('/api/embed', {
       method: 'POST',
@@ -94,7 +78,7 @@ const ChatPage = () => {
   }
 
   // Start chunking process automatically when the page loads
-  const startChunking = async (url: string, name: string) => {
+  const startChunking = useCallback(async (url: string, name: string) => {
     // Check if chunks already exist for this file to prevent duplication
     if (chunkCounter && chunkCounter.count > 0) {
       setChunksReady(true)
@@ -116,7 +100,7 @@ const ChatPage = () => {
           chunkNumber: i + 1,
           chunkText: chunk,
           embeddingChunk: embed,
-          fileId: file!._id, // file is guaranteed to be present here
+          fileId: file!._id,
         })
 
         // Update chunk progress
@@ -131,7 +115,21 @@ const ChatPage = () => {
       console.error("Error during chunking:", err)
     }
     setLoadingChunks(false)
-  }
+  }, [chunkCounter, createChunk, file])
+
+  useEffect(() => {
+    if (file && !isLoading && !error && !hasStartedChunking) {
+      setPdfUrl(file.fileUrl)
+      setFileName(file.fileName)
+      setHasStartedChunking(true)
+      startChunking(file.fileUrl, file.fileName)
+    }
+  }, [file, isLoading, error, hasStartedChunking, startChunking])
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -177,7 +175,7 @@ const ChatPage = () => {
         body: JSON.stringify({
           userQueryEmbedding,
           fileEmbeddings,
-          userQuestion: message // Include the original message text
+          userQuestion: message
         }),
       })
   
@@ -206,7 +204,6 @@ const ChatPage = () => {
       setIsSubmitting(false)
     }
   }
-  
 
   return (
     <div className="relative flex h-screen bg-gradient-to-r from-rose-100 to-rose-200 overflow-hidden">
@@ -265,7 +262,6 @@ const ChatPage = () => {
                   <div className="w-10 h-10 border-4 border-rose-400 border-t-rose-600 rounded-full animate-spin mb-4"></div>
                   <p className="mb-4 font-medium text-rose-600">{getLoadingMessage(progressPercentage)}</p>
                   
-                  {/* Prettier progress indicator */}
                   <div className="w-64 bg-rose-100 rounded-full h-4 overflow-hidden shadow-inner">
                     <div 
                       className="bg-gradient-to-r from-rose-300 to-rose-500 h-full rounded-full transition-all duration-300 ease-out"

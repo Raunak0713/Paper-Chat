@@ -25,10 +25,6 @@ export default function Home() {
     "Nebula Analytics", "Pinnacle Tech", "Zenith Software", "Cipher Solutions", "Insight Systems"
   ];
 
-  // Open the file picker on button click
-  const openFilePicker = () => {
-    fileInputRef.current?.click();
-  };
 
   // Handle the file upload process
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
