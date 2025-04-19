@@ -198,7 +198,7 @@ export function Navbar() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.2 }}
-            className="md:hidden bg-white/80 backdrop-blur-lg border border-white/20 py-4 px-6 shadow-lg mt-20 mx-4 rounded-xl"
+            className="md:hidden bg-white/80 backdrop-blur-lg border border-white/20 py-4 px-6 shadow-lg mt-5 mx-4 rounded-xl"
             style={{ backdropFilter: "blur(8px)" }}
           >
             <nav className="flex flex-col space-y-4">
