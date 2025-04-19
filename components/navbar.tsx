@@ -54,25 +54,27 @@ export function Navbar() {
             <Link href="#" className="text-gray-700 hover:text-rose-600 font-medium">About</Link>
           </nav> */}
 
-          <div className="hidden md:flex items-center space-x-4">
+          <div className="flex items-center space-x-4">
             {isSignedIn ? (
               <>
                 <Link href={"/dashboard"}>
-                  <Button className="bg-rose-500 hover:bg-rose-600 text-white">Dashboard</Button>
+                  <Button className="bg-rose-500 hover:bg-rose-600 text-white scale-90 md:scale-100">Dashboard</Button>
                 </Link>
-                <UserButton 
-                  appearance={{
-                    elements : {
-                      avatarBox : {
-                        height : "35px",
-                        width : "35px"
-                      },
-                      userButtonPopoverCard : {
-                        marginTop : "7.5px"
+                <div className="scale-90 md:scale-100">
+                  <UserButton 
+                    appearance={{
+                      elements : {
+                        avatarBox : {
+                          height : "35px",
+                          width : "35px"
+                        },
+                        userButtonPopoverCard : {
+                          marginTop : "7.5px"
+                        }
                       }
-                    }
-                  }}
-                />
+                    }}
+                  />
+                </div>
               </>
             ) : (
               <>
@@ -88,7 +90,7 @@ export function Navbar() {
             )}
           </div>
 
-          <div className="md:hidden">
+          {/* <div className="md:hidden">
             <Button
               variant="ghost"
               size="icon"
@@ -97,7 +99,7 @@ export function Navbar() {
             >
               {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </Button>
-          </div>
+          </div> */}
         </div>
       </div>
 
@@ -142,25 +144,27 @@ export function Navbar() {
               <Link href="#" className="text-gray-700 hover:text-rose-600 font-medium">About</Link>
             </nav> */}
 
-            <div className="hidden md:flex items-center space-x-4">
+          <div className="flex items-center space-x-4">
             {isSignedIn ? (
               <>
-                <SignInButton>
-                  <Button className="bg-rose-500 hover:bg-rose-600 text-white">Dashboard</Button>
-                </SignInButton>
-                <UserButton 
-                  appearance={{
-                    elements : {
-                      avatarBox : {
-                        height : "35px",
-                        width : "35px"
-                      },
-                      userButtonPopoverCard : {
-                        marginTop : "7.5px"
+                <Link href={"/dashboard"}>
+                  <Button className="bg-rose-500 hover:bg-rose-600 text-white scale-90 md:scale-100">Dashboard</Button>
+                </Link>
+                <div className="scale-90 md:scale-100">
+                  <UserButton 
+                    appearance={{
+                      elements : {
+                        avatarBox : {
+                          height : "35px",
+                          width : "35px"
+                        },
+                        userButtonPopoverCard : {
+                          marginTop : "7.5px"
+                        }
                       }
-                    }
-                  }}
-                />
+                    }}
+                  />
+                </div>
               </>
             ) : (
               <>
@@ -176,7 +180,7 @@ export function Navbar() {
             )}
           </div>
 
-            <div className="md:hidden">
+            {/* <div className="md:hidden">
               <Button
                 variant="ghost"
                 size="icon"
@@ -185,7 +189,7 @@ export function Navbar() {
               >
                 {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
               </Button>
-            </div>
+            </div> */}
           </div>
         </motion.div>
       </motion.div>
