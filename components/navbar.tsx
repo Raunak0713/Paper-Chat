@@ -38,7 +38,7 @@ export function Navbar() {
             </Link>
           </div>
 
-          <nav className="hidden md:flex items-center space-x-8">
+          {/* <nav className="hidden md:flex items-center space-x-8">
             <Link href="#" className="text-gray-700 hover:text-rose-600 font-medium">Features</Link>
             <Link href="#" className="text-gray-700 hover:text-rose-600 font-medium">Pricing</Link>
             <DropdownMenu>
@@ -52,7 +52,7 @@ export function Navbar() {
               </DropdownMenuContent>
             </DropdownMenu>
             <Link href="#" className="text-gray-700 hover:text-rose-600 font-medium">About</Link>
-          </nav>
+          </nav> */}
 
           <div className="hidden md:flex items-center space-x-4">
             {isSignedIn ? (
@@ -126,7 +126,7 @@ export function Navbar() {
               <span>PaperChat</span>
             </Link>
 
-            <nav className="hidden md:flex items-center space-x-8">
+            {/* <nav className="hidden md:flex items-center space-x-8">
               <Link href="#" className="text-gray-700 hover:text-rose-600 font-medium">Features</Link>
               <Link href="#" className="text-gray-700 hover:text-rose-600 font-medium">Pricing</Link>
               <DropdownMenu>
@@ -140,7 +140,7 @@ export function Navbar() {
                 </DropdownMenuContent>
               </DropdownMenu>
               <Link href="#" className="text-gray-700 hover:text-rose-600 font-medium">About</Link>
-            </nav>
+            </nav> */}
 
             <div className="hidden md:flex items-center space-x-4">
             {isSignedIn ? (
