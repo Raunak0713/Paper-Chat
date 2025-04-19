@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "PaperChat",
   description: "Talk to your pdfs",
+  icons : {
+    icon : '/sparkle_icon_transparent.ico'
+  }
 };
 
 export default function RootLayout({
