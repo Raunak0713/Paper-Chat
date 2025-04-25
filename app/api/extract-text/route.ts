@@ -27,6 +27,6 @@ export async function POST(req : NextRequest){
   const chunks =  splitDocs.map((doc) => doc.pageContent);
 
   return NextResponse.json({ 
-    chunks : chunks
+    rawText : rawText
   })
 }

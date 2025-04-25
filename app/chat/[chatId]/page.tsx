@@ -2,25 +2,24 @@
 
 import { useEffect, useState, FormEvent, useRef, useCallback } from 'react'
 import { useParams } from 'next/navigation'
-import { useMutation, useQuery } from 'convex/react'
+import { useQuery } from 'convex/react'
 import { api } from '@/convex/_generated/api'
 import { Id } from '@/convex/_generated/dataModel'
+import { motion } from 'framer-motion'
 
 const ChatPage = () => {
   const { chatId } = useParams()
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [fileName, setFileName] = useState<string | null>(null)
-  const [loadingChunks, setLoadingChunks] = useState(false)
-  const [chunksReady, setChunksReady] = useState(false)
-  const [chunkData, setChunkData] = useState({ count: 0, expectedCount: 0 })
-  const [hasStartedChunking, setHasStartedChunking] = useState(false)
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant', content: string }[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showPdf, setShowPdf] = useState(false) // State to toggle PDF view on mobile
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [fullText, setFullText] = useState<string | null>(null);
+  const [loadingFullText, setLoadingFullText] = useState(false);
+  const [isAiThinking, setIsAiThinking] = useState(false); // State to indicate AI thinking
 
-  const createChunk = useMutation(api.chunk.createChunk)
   const file = useQuery(api.file.getFileById, {
     fileId: chatId as Id<'files'>,
   })
@@ -28,162 +27,133 @@ const ChatPage = () => {
   const isLoading = file === undefined
   const error = file === null
 
-  const fileEmbeddings = useQuery(api.chunk.getFileEmbeddings,
-    file ? { fileId: file._id } : "skip"
-  )
-
-  const chunkCounter = useQuery(api.chunk.chunkCounter, {
-    fileId: chatId as Id<'files'>,
-  })
-
-  // Progress-based loading messages
-  const getLoadingMessage = (progress: number) => {
-    if (progress < 10) return "Starting to process your document..."
-    if (progress < 20) return "Parsing PDF content..."
-    if (progress < 30) return "Breaking text into meaningful chunks..."
-    if (progress < 40) return "Beginning to understand your document..."
-    if (progress < 50) return "Creating semantic connections..."
-    if (progress < 60) return "Enhancing document intelligence..."
-    if (progress < 70) return "Processing complex sections..."
-    if (progress < 80) return "Aligning knowledge vectors..."
-    if (progress < 90) return "Finalizing neural embeddings..."
-    return "Almost ready to chat with your document!"
-  }
-
-  // Calculate progress percentage
-  const progressPercentage = chunkData.expectedCount > 0 
-    ? Math.round((chunkData.count / chunkData.expectedCount) * 100) 
-    : 0
-
-  const generateEmbeddings = async (chunk: string) => {
-    const res = await fetch('/api/embed', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chunk }),
-    })
-
-    const data = await res.json()
-    return data.embedding
-  }
-
-  const fetchChunks = async (url: string, name: string) => {
-    const res = await fetch('/api/print', {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pdfUrl: url, pdfName: name }),
-    })
-    return res.json()
-  }
-
-  // Start chunking process automatically when the page loads
-  const startChunking = useCallback(async (url: string, name: string) => {
-    if (chunkCounter && chunkCounter.count > 0) {
-      setChunksReady(true)
-      setLoadingChunks(false)
-      return
-    }
-    
-    setLoadingChunks(true)
-    try {
-      const { chunks } = await fetchChunks(url, name)
-      const expectedCount = chunks.length
-      setChunkData({ count: 0, expectedCount })
-
-      for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i]
-        const embed = await generateEmbeddings(chunk)
-        await createChunk({
-          chunkNumber: i + 1,
-          chunkText: chunk,
-          embeddingChunk: embed,
-          fileId: file!._id,
-        })
-
-        setChunkData((prev) => ({
-          ...prev,
-          count: prev.count + 1,
-        }))
-      }
-
-      setChunksReady(true)
-    } catch (err) {
-      console.error("Error during chunking:", err)
-    }
-    setLoadingChunks(false)
-  }, [chunkCounter, createChunk, file])
-
-  useEffect(() => {
-    if (file && !isLoading && !error && !hasStartedChunking) {
-      setPdfUrl(file.fileUrl)
-      setFileName(file.fileName)
-      setHasStartedChunking(true)
-      startChunking(file.fileUrl, file.fileName)
-    }
-  }, [file, isLoading, error, hasStartedChunking, startChunking])
-
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  const extractTextFromPdf = useCallback(async (url: string, name: string) => {
+    setLoadingFullText(true);
+    try {
+      const res = await fetch('/api/extract-text', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pdfUrl: url, pdfName: name }),
+      });
+      const data = await res.json();
+      setFullText(data.rawText);
+    } catch (err) {
+      console.error("Error extracting text:", err);
+      setFullText("Error extracting text from PDF.");
+    } finally {
+      setLoadingFullText(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (file && !isLoading && !error) {
+      setPdfUrl(file.fileUrl)
+      setFileName(file.fileName)
+      extractTextFromPdf(file.fileUrl, file.fileName);
+    }
+  }, [file, isLoading, error, extractTextFromPdf])
+
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (!message.trim() || isSubmitting) return
-  
+
     const userMessage = { role: 'user' as const, content: message }
     setMessages(prev => [...prev, userMessage])
     setMessage('')
     setIsSubmitting(true)
-  
+    setIsAiThinking(true); // Show thinking bubble
+
     try {
-      const embedResponse = await fetch('/api/embed', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chunk: message }),
-      })
-  
-      if (!embedResponse.ok) throw new Error('Failed to generate embedding for query')
-  
-      const embedData = await embedResponse.json()
-      const userQueryEmbedding = embedData.embedding
-  
-      if (!fileEmbeddings || !Array.isArray(fileEmbeddings) || fileEmbeddings.length === 0) {
-        throw new Error('Document embeddings not available')
+      if (!fullText) {
+        throw new Error('Document text not available');
       }
-  
+
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userQueryEmbedding,
-          fileEmbeddings,
-          userQuestion: message
+          userQuestion: message,
+          context: fullText,
         }),
       })
-  
+
       if (!res.ok) {
         const errorData = await res.json()
         throw new Error(errorData.error || 'Failed to get response')
       }
-  
+
       const data = await res.json()
       const aiMessage = {
         role: 'assistant' as const,
         content: data.answer || "I couldn't find relevant information in the document to answer your question."
       }
-  
+
       setMessages(prev => [...prev, aiMessage])
     } catch (err) {
       console.error('Error while processing the query:', err)
-      const errorMessage = { 
-        role: 'assistant' as const, 
-        content: `Sorry, I encountered an error: ${err instanceof Error ? err.message : 'Unknown error'}. Please try again.` 
+      const errorMessage = {
+        role: 'assistant' as const,
+        content: `Sorry, I encountered an error: ${err instanceof Error ? err.message : 'Unknown error'}. Please try again.`
       }
       setMessages(prev => [...prev, errorMessage])
     } finally {
       setIsSubmitting(false)
+      setIsAiThinking(false); // Hide thinking bubble
     }
   }
+
+  const AiThinkingBubble = () => (
+    <div className="flex justify-start">
+      <div className="max-w-[80%] p-2 md:p-3 rounded-xl md:rounded-2xl bg-white/60 backdrop-blur-sm text-gray-800 rounded-tl-none border border-rose-200">
+        <div className="flex items-center space-x-1">
+          <motion.div
+            animate={{
+              y: [0, -8, 0],
+              opacity: [0.6, 1, 0.6],
+            }}
+            transition={{
+              duration: 1.2,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className="w-2 h-2 rounded-full bg-rose-500"
+          />
+          <motion.div
+            animate={{
+              y: [0, -8, 0],
+              opacity: [0.6, 1, 0.6],
+            }}
+            transition={{
+              duration: 1.2,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 0.2
+            }}
+            className="w-2 h-2 rounded-full bg-rose-500"
+          />
+          <motion.div
+            animate={{
+              y: [0, -8, 0],
+              opacity: [0.6, 1, 0.6],
+            }}
+            transition={{
+              duration: 1.2,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 0.4
+            }}
+            className="w-2 h-2 rounded-full bg-rose-500"
+          />
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="relative flex flex-col h-screen bg-gradient-to-r from-rose-100 to-rose-200 overflow-hidden">
@@ -247,27 +217,15 @@ const ChatPage = () => {
             </div>
 
             <div className="flex-grow overflow-auto p-2 md:p-4">
-              {!chunksReady ? (
+              {loadingFullText ? (
                 <div className="flex flex-col items-center justify-center h-full text-lg text-foreground opacity-80 text-center">
                   <div className="w-10 h-10 border-4 border-rose-400 border-t-rose-600 rounded-full animate-spin mb-4"></div>
-                  <p className="mb-4 font-medium text-rose-600">{getLoadingMessage(progressPercentage)}</p>
-                  
-                  <div className="w-48 md:w-64 bg-rose-100 rounded-full h-3 md:h-4 overflow-hidden shadow-inner">
-                    <div 
-                      className="bg-gradient-to-r from-rose-300 to-rose-500 h-full rounded-full transition-all duration-300 ease-out"
-                      style={{ width: `${progressPercentage}%` }}
-                    ></div>
-                  </div>
-                  
-                  <p className="mt-3 text-sm font-medium text-rose-500 flex items-center">
-                    <span className="bg-white/70 px-2 md:px-3 py-1 rounded-full shadow-sm border border-rose-200">
-                      {chunkData.count} / {chunkData.expectedCount} chunks
-                    </span>
-                    <span className="ml-2 bg-rose-400 text-white px-2 py-1 rounded-full shadow-sm">
-                      {progressPercentage}%
-                    </span>
-                  </p>
+                  <p className="mb-4 font-medium text-rose-600">Extracting text from document...</p>
                 </div>
+              ) : !fullText ? (
+                  <div className="flex flex-col items-center justify-center h-full text-lg text-foreground opacity-80 text-center">
+                    <p className="mb-4 font-medium text-rose-600">Waiting for document to load...</p>
+                  </div>
               ) : (
                 <div className="flex flex-col space-y-3 md:space-y-4">
                   {messages.length === 0 ? (
@@ -276,14 +234,14 @@ const ChatPage = () => {
                     </div>
                   ) : (
                     messages.map((msg, index) => (
-                      <div 
-                        key={index} 
+                      <div
+                        key={index}
                         className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                       >
-                        <div 
+                        <div
                           className={`max-w-[90%] md:max-w-[80%] p-2 md:p-3 rounded-xl md:rounded-2xl ${
-                            msg.role === 'user' 
-                              ? 'bg-rose-400 text-white rounded-tr-none' 
+                            msg.role === 'user'
+                              ? 'bg-rose-400 text-white rounded-tr-none'
                               : 'bg-white/60 backdrop-blur-sm text-gray-800 rounded-tl-none border border-rose-200'
                           }`}
                         >
@@ -292,13 +250,14 @@ const ChatPage = () => {
                       </div>
                     ))
                   )}
+                  {isAiThinking && <AiThinkingBubble />}
                   <div ref={messagesEndRef} />
                 </div>
               )}
             </div>
 
             {/* Chat Input */}
-            {chunksReady && (
+            {!loadingFullText && fullText && (
               <div className="p-2 md:p-4 border-t border-rose-200 bg-white/40 backdrop-blur-sm">
                 <form onSubmit={handleSubmit} className="flex space-x-2">
                   <input
@@ -330,6 +289,43 @@ const ChatPage = () => {
           </div>
         </div>
       </div>
+      <style jsx>{`
+  .typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .typing-indicator span {
+    width: 10px;
+    height: 10px;
+    background-color: #f43f5e; /* rose-500 */
+    border-radius: 50%;
+    animation: bounce 1.2s infinite ease-in-out;
+  }
+
+  .typing-indicator span:nth-child(1) {
+    animation-delay: 0s;
+  }
+
+  .typing-indicator span:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .typing-indicator span:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+
+  @keyframes bounce {
+    0%, 80%, 100% {
+      transform: scale(0.8) translateY(0);
+    }
+    40% {
+      transform: scale(1.2) translateY(-6px);
+    }
+  }
+`}</style>
+
     </div>
   )
 }
